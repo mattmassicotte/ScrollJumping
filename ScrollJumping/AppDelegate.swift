@@ -24,7 +24,7 @@ class MyRulerView: NSRulerView {
         super.init(scrollView: scrollView, orientation: orientation)
 
         // to make the problem more obvious
-        ruleThickness = 77.0
+        ruleThickness = 100.0
     }
 
     required init(coder: NSCoder) {
@@ -55,20 +55,17 @@ class JumpingBugWorkaroundScrollView: NSScrollView {
         return true
     }
 
-    // determined emperically and is possibly OS-version dependent. Unsure
-    // why the leading and trailing sides are the same
-    private var magicLeadingMarginDistance: CGFloat {
-        return 5.0
-    }
+    private var textPadding: CGFloat {
+        let padding = textView?.textContainer?.lineFragmentPadding ?? 0.0
+        let inset = textView?.textContainerInset.width ?? 0.0
 
-    private var magicTrailingMarginDistance: CGFloat {
-        return 5.0
+        return padding + inset
     }
 
     private var rulerSideTripLength: CGFloat {
         let thickness = verticalRulerView?.requiredThickness ?? 0.0
 
-        return thickness - magicLeadingMarginDistance
+        return thickness - textPadding
     }
 
     private func shouldFilterScrollPoint(_ newPoint: NSPoint) -> Bool {
@@ -79,18 +76,18 @@ class JumpingBugWorkaroundScrollView: NSScrollView {
         let newPos = newPoint.x
         let lastPos = lastPosition
 
-        // this is -1.0 and not 0.0 to give a little slack so that
-        // the scroll appears smooth on the trailing side
+        // Case 1: jump that occurs when leading text is
+        // obsecured by the ruler
+        //
+        // this is -1.0 to give a little slack so that
+        // the scroll appears smoother
         if lastPos < -1.0 && newPos == 0.0 {
             return true
         }
 
-        // this is a weird behavior on the trailing side
-        if lastPos == 0.0 && newPos == -magicTrailingMarginDistance {
-            return true
-        }
-
-        // handles the leading side cases
+        // Case 2: jump that occurs when leading text is
+        // obsecured by the ruler and also scrolled far enough
+        // to cause elastic behavior
         if lastPos < -rulerSideTripLength && newPos == -rulerSideTripLength {
             return true
         }
@@ -147,6 +144,9 @@ class ViewController: NSViewController {
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = true
         textView.textContainer?.widthTracksTextView = false
+        textView.minSize = NSSize.zero
+        textView.maxSize = NSSize(width: max, height: max)
+
 
         scrollView.documentView = textView
 
